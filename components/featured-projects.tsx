@@ -12,6 +12,7 @@ import { Loader2, MapPin, DollarSign, Building, ArrowRight } from "lucide-react"
 export function FeaturedProjects() {
   const { language, t } = useLanguage()
   const [projects, setProjects] = useState<any[]>([])
+  const [subcategories, setSubcategories] = useState<{ [key: string]: any }>({})
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -20,12 +21,12 @@ export function FeaturedProjects() {
       const supabase = getSupabaseBrowserClient()
 
       try {
-        const { data } = await supabase
+        // Fetch projects
+        const { data: projectsData } = await supabase
           .from("projects")
           .select(`
             *,
             categories(*),
-            subcategory:subcategory_id(id, name_en, name_am),
             company:company_id(
               id,
               full_name,
@@ -36,7 +37,23 @@ export function FeaturedProjects() {
           .order("created_at", { ascending: false })
           .limit(3)
 
-        setProjects(data || [])
+        setProjects(projectsData || [])
+
+        // Fetch subcategories for projects that have them
+        const subcategoryIds =
+          projectsData?.filter((project) => project.subcategory_id).map((project) => project.subcategory_id) || []
+
+        if (subcategoryIds.length > 0) {
+          const { data: subcategoriesData } = await supabase.from("subcategories").select("*").in("id", subcategoryIds)
+
+          // Create a map of subcategory_id to subcategory data
+          const subcategoriesMap = (subcategoriesData || []).reduce((acc, subcategory) => {
+            acc[subcategory.id] = subcategory
+            return acc
+          }, {})
+
+          setSubcategories(subcategoriesMap)
+        }
       } catch (error) {
         console.error("Error fetching projects:", error)
       } finally {
@@ -70,48 +87,52 @@ export function FeaturedProjects() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {projects.map((project) => (
-            <Card key={project.id} className="h-full flex flex-col hover:shadow-lg transition-shadow duration-200">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-xl line-clamp-2">{project.title}</CardTitle>
-                  <Badge>{language === "en" ? project.categories.name_en : project.categories.name_am}</Badge>
-                </div>
-                {project.subcategory && (
-                  <Badge variant="outline" className="mt-2 w-fit">
-                    {language === "en" ? project.subcategory.name_en : project.subcategory.name_am}
-                  </Badge>
-                )}
-              </CardHeader>
-              <CardContent className="flex-1">
-                <p className="text-gray-600 mb-4 line-clamp-3">{project.description}</p>
-                <div className="space-y-2">
-                  <div className="flex items-center text-sm text-gray-500">
-                    <MapPin className="mr-2 h-4 w-4" />
-                    {project.location}
+          {projects.map((project) => {
+            const projectSubcategory = project.subcategory_id ? subcategories[project.subcategory_id] : null
+
+            return (
+              <Card key={project.id} className="h-full flex flex-col hover:shadow-lg transition-shadow duration-200">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-xl line-clamp-2">{project.title}</CardTitle>
+                    <Badge>{language === "en" ? project.categories.name_en : project.categories.name_am}</Badge>
                   </div>
-                  {project.budget && (
-                    <div className="flex items-center text-sm text-gray-500">
-                      <DollarSign className="mr-2 h-4 w-4" />
-                      {project.budget.toLocaleString()} ETB
-                    </div>
+                  {projectSubcategory && (
+                    <Badge variant="outline" className="mt-2 w-fit">
+                      {language === "en" ? projectSubcategory.name_en : projectSubcategory.name_am}
+                    </Badge>
                   )}
-                  <div className="flex items-center text-sm text-gray-500">
-                    <Building className="mr-2 h-4 w-4" />
-                    {project.company.company_profiles[0]?.company_name || project.company.full_name}
+                </CardHeader>
+                <CardContent className="flex-1">
+                  <p className="text-gray-600 mb-4 line-clamp-3">{project.description}</p>
+                  <div className="space-y-2">
+                    <div className="flex items-center text-sm text-gray-500">
+                      <MapPin className="mr-2 h-4 w-4" />
+                      {project.location}
+                    </div>
+                    {project.budget && (
+                      <div className="flex items-center text-sm text-gray-500">
+                        <DollarSign className="mr-2 h-4 w-4" />
+                        {project.budget.toLocaleString()} ETB
+                      </div>
+                    )}
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Building className="mr-2 h-4 w-4" />
+                      {project.company.company_profiles[0]?.company_name || project.company.full_name}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Link href={`/projects/${project.id}`} className="w-full">
-                  <Button variant="outline" className="w-full">
-                    View Details
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
-          ))}
+                </CardContent>
+                <CardFooter>
+                  <Link href={`/projects/${project.id}`} className="w-full">
+                    <Button variant="outline" className="w-full">
+                      View Details
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            )
+          })}
         </div>
 
         <div className="text-center mt-12">

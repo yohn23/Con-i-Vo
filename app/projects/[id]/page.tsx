@@ -20,6 +20,7 @@ export default function ProjectDetailPage() {
   const { language, t } = useLanguage()
   const router = useRouter()
   const [project, setProject] = useState<any>(null)
+  const [subcategory, setSubcategory] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [userBid, setUserBid] = useState<any>(null)
   const [activeTab, setActiveTab] = useState("details")
@@ -36,7 +37,6 @@ export default function ProjectDetailPage() {
           .select(`
             *,
             categories(*),
-            subcategory:subcategory_id(id, name_en, name_am),
             company:company_id(
               id,
               full_name,
@@ -49,6 +49,17 @@ export default function ProjectDetailPage() {
         if (error) throw error
 
         setProject(projectData)
+
+        // If project has a subcategory_id, fetch the subcategory separately
+        if (projectData.subcategory_id) {
+          const { data: subcategoryData } = await supabase
+            .from("subcategories")
+            .select("*")
+            .eq("id", projectData.subcategory_id)
+            .single()
+
+          setSubcategory(subcategoryData)
+        }
 
         // If user is logged in, check if they have already bid on this project
         if (user) {
@@ -163,11 +174,11 @@ export default function ProjectDetailPage() {
                         {language === "en" ? project.categories.name_en : project.categories.name_am}
                       </Badge>
 
-                      {project.subcategory && (
+                      {subcategory && (
                         <div className="flex items-center mt-2">
                           <Tag className="h-4 w-4 mr-1 text-gray-500" />
                           <span className="text-gray-600">
-                            {language === "en" ? project.subcategory.name_en : project.subcategory.name_am}
+                            {language === "en" ? subcategory.name_en : subcategory.name_am}
                           </span>
                         </div>
                       )}
