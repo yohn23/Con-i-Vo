@@ -11,7 +11,7 @@ export function Testimonials() {
   const testimonials = [
     {
       id: 1,
-      name: "Abebe Kebede",
+      name: "Abel Yayneshet",
       role: "Project Manager",
       company: "Addis Construction",
       image: "/images/testimonial-1.jpg",
